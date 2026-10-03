@@ -1,7 +1,7 @@
 import { useZustandAdapter } from '@dredge/hooks/use-zustand-adapter';
 import { getItemAt } from '@dredge/lib/utils';
 import { HullData, PackedItem, SlotType } from '@dredge/types';
-import { createContext, useContext, useRef, useState } from 'react';
+import { createContext, useContext, useState } from 'react';
 import { binPackingAsync } from '@dredge/lib/bin-packing/bin-packing-async';
 import { useMediaQuery } from 'react-responsive';
 import { toast } from 'sonner';
@@ -35,7 +35,6 @@ export const DredgeProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [abortController, setAbortController] =
     useState<AbortController | null>(null);
-  const stickyToast = useRef<string | number | null>(null);
 
   const BASE_ENCYCLOPEDIA_GRID_SQUARE_SIZE = 40;
   const isLarge = useMediaQuery({
@@ -87,15 +86,6 @@ export const DredgeProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // Only the newest "No solution found!" toast waits to be dismissed: whenever another
-  // toast appears, the older sticky one expires a few seconds later.
-  const showError = (message: string, sticky = false) => {
-    const older = stickyToast.current;
-    if (older !== null) setTimeout(() => toast.dismiss(older), 3000);
-    const id = toast.error(message, sticky ? { duration: Infinity } : {});
-    stickyToast.current = sticky ? id : null;
-  };
-
   const packItems = async (newItems: PackedItem[]) => {
     const controller = new AbortController();
     setAbortController(controller);
@@ -111,14 +101,14 @@ export const DredgeProvider = ({ children }: { children: React.ReactNode }) => {
       if (packed) {
         setPackedItems(packed);
       } else {
-        showError('No solution found!', true);
+        toast.error('No solution found!');
       }
     } catch (error) {
       if ((error as Error).name === 'AbortError') {
-        showError('Calculation aborted');
+        toast.error('Calculation aborted');
       } else {
         console.error('Error during calculation:', error);
-        showError('An error occurred during calculation.');
+        toast.error('An error occurred during calculation.');
       }
     } finally {
       setIsLoading(false);
